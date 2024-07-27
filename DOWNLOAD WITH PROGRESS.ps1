@@ -2,7 +2,7 @@
 function DownloadWithProgress {
 
     $LINK = ''
-    $FILE = ' '
+    $FILE = ''
    
     $webClient = New-Object System.Net.WebClient
     $task = $webClient.DownloadFileTaskAsync($LINK, $FILE)
