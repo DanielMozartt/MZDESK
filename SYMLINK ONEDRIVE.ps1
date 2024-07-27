@@ -37,13 +37,16 @@ else {
 
 }
 
-#SELECIONA LOCAL DA PASTA DO ONEDRIVE.
-Set-Location K:\OneDrive
+#SELECIONA LOCAL ATUAL DA PASTA DO ONEDRIVE JÁ CRIADA PREVIAMENTE.
+Set-Location $HOME\OneDrive
 
-#CRIA UM LINK SYMBÓLICO DA UNIDADE X: COM NOME MZT.DM
-New-Item -ItemType symboliclink -Path . -Name MZT.DM -Value X:\
+#EXEMPLO 1 - CRIA UM LINK SIMBÓLICO DA UNIDADE D: COM UMA PASTA DE NOME TESTE
+New-Item -ItemType symboliclink -Path . -Name TESTE -Value D:\
 
-#CRIA UM LINK SYMBÓLICO DA UNIDADE Z: COM NOME MZT.TI
-New-Item -ItemType symboliclink -Path . -Name MZT.IT -Value Z:\
+#EXEMPLO 2 - CRIA UM LINK SIMBÓLICO DA PASTA TESTE na UNIDADE D:
+New-Item -ItemType symboliclink -Path . -Name TESTE -Value D:\TESTE
+
+#EXEMPLO 3 - CRIA UM LINK SIMBÓLICO DO ARQUIVO TESTE.txt localizado na pasta TESTE na UNIDADE D:
+New-Item -ItemType symboliclink -Path . -Name TESTE.txt -Value D:\TESTE\TESTE.txt
 
 EXIT
