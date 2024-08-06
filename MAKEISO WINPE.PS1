@@ -33,7 +33,7 @@ Dism /Add-Package /Image:"C:\WinPE\mount" /PackagePath:"C:\Program Files (x86)\W
 
 Dism /Unmount-Image /MountDir:C:\WinPE\mount /Commit
 
-MD C:\WINPE\MZTOOL
+mkdir C:\WINPE\MZTOOL
 
 XCOPY C:\TOOL\MZTOOL C:\WINPE\MZTOOL /h /i /c /k /e /r /y
 
