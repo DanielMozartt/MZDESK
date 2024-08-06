@@ -1,11 +1,11 @@
 function Office365 {
 
-    $Host.UI.RawUI.WindowTitle = 'OFFICE365'
-    $Host.UI.RawUI.BackgroundColor = 'DarkBlue'
+  $Host.UI.RawUI.WindowTitle = 'OFFICE365'
+  $Host.UI.RawUI.BackgroundColor = 'DarkBlue'
 
-    #Cria o arquivo XML de instalação personalizada no diretório C:\365.
+  #Armazena os dados XML de instalação personalizada do Microsoft 365.
     
-    [xml]$XML = @'
+  [xml]$XML = @'
 <Configuration ID="646616bb-84c9-4354-9908-8abd74c04f4c">
   <Add OfficeClientEdition="64" Channel="Current" MigrateArch="TRUE">
     <Product ID="O365ProPlusEEANoTeamsRetail">
@@ -27,36 +27,36 @@ function Office365 {
 </Configuration> 
 '@
      
-    $365 = 'C:\365'
+  $365 = 'C:\365'
     
-    #Se o diretório $365 já existir, é deletado.
+  #Se o diretório $365 já existir, é deletado.
 
-    if ($365) {
-
-        Remove-Item -Path "$365"-Recurse -Force -ErrorAction SilentlyContinue
-    }
-    
-    #Cria o diretório $365.
-    
-    [System.IO.Directory]::CreateDirectory($365) | Out-Null
-    
-    #Cria o arquivo XML no diretório $365.
-
-    $XML.save("$365\OFFICE365.xml") 
-   
-    $365XML = "$365\OFFICE365.xml"
-
-    #Instala o Microsoft365 com as configuraçoes do XML $365XML.
-
-    Winget Install --Id Microsoft.Office --Override "/configure $365XML" --Accept-Source-Agreements --Accept-Package-Agreements
-
-    #Remove o diretório $365.
+  if ($365) {
 
     Remove-Item -Path "$365"-Recurse -Force -ErrorAction SilentlyContinue
+  }
     
-    Clear-Host
+  #Cria o diretório $365.
+    
+  [System.IO.Directory]::CreateDirectory($365) | Out-Null
+    
+  #Cria o arquivo XML no diretório $365.
 
-    Exit
+  $XML.save("$365\OFFICE365.xml") 
+   
+  $365XML = "$365\OFFICE365.xml"
+
+  #Instala o Microsoft365 com as configuraçoes do XML $365XML.
+
+  Winget Install --Id Microsoft.Office --Override "/configure $365XML" --Accept-Source-Agreements --Accept-Package-Agreements
+
+  #Remove o diretório $365.
+
+  Remove-Item -Path "$365"-Recurse -Force -ErrorAction SilentlyContinue
+    
+  Clear-Host
+
+  Exit
 }
 
 Office365
