@@ -1,0 +1,11 @@
+@echo off
+
+md C:\FORCEPOINT
+
+copy \\bbwd8031\X\FORCEPOINT C:\FORCEPOINT
+
+cd C:\FORCEPOINT
+
+setup.exe /v"XPSWD=lL9BYE0b20 WSCONTEXT=1726f7eb121fd29372b8bbd994167c0d-0"
+
+pause

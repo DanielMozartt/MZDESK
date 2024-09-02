@@ -1,0 +1,5 @@
+:A
+
+gpupdate
+
+GOTO A

@@ -1,0 +1,3 @@
+LUSRMGR.MSC
+
+exit

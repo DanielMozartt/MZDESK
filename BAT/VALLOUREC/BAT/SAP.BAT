@@ -1,0 +1,15 @@
+CD "C:\Program Files (x86)\SAP\FrontEnd\SAPgui"
+
+START SAPLOGON.EXE
+
+TIMEOUT 10
+
+TASKKILL /F /IM SAPLOGON.EXE
+
+reg add "HKEY_USERS\S-1-5-21-2386906005-715694106-2276910741-71473\SOFTWARE\SAP\SAPLogon\Options" /v PathConfigFilesLocal /d "C:\SAP" /t reg_sz /f
+
+pause
+
+START SAPLOGON.EXE
+
+EXIT

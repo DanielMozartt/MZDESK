@@ -1,0 +1,1 @@
+PowerShell start-process PowerShell -Verb runAs {irm https://get.activated.win | iex}

@@ -1,0 +1,1 @@
+Rename-ItemProperty -Path "HKLM:\SOFTWARE\TEHTRIS\TEHTRIS EPP Agent" -Name ComputerName -NewName Uid -passthru
