@@ -62,12 +62,29 @@ function Backup-Folders {
             [string]$source,
             [string]$destination
         )
-        Copy-Item -Path $source -Destination $destination -Recurse -Force
+        try {
+            Copy-Item -Path $source -Destination $destination -Recurse -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Host "Erro ao copiar a pasta $source: $_"
+        }
+    }
+
+    # Função para obter o caminho da pasta, verificando também no OneDrive
+    function Get-FolderPath {
+        param (
+            [string]$folderName
+        )
+        $path = Join-Path -Path $HOME -ChildPath $folderName
+        if (-not (Test-Path -Path $path)) {
+            $path = Join-Path -Path "$HOME\OneDrive" -ChildPath $folderName
+        }
+        return $path
     }
 
     # Copia as pastas para o destino
     foreach ($folder in $folders) {
-        $sourcePath = Join-Path -Path $HOME -ChildPath $folder
+        $sourcePath = Get-FolderPath -folderName $folder
         $destPath = Join-Path -Path $destinationPath -ChildPath $folder
         Copy-Folder -source $sourcePath -destination $destPath
         $progressBar.PerformStep()
