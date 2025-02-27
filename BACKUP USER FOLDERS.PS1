@@ -62,7 +62,7 @@ function Backup-Folders {
             [string]$source,
             [string]$destination
         )
-        Copy-Item -Path $source -Destination $destination -Recurse -Force
+        Copy-Item -Path $source -Destination $destination -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     # Função para obter o caminho da pasta, verificando também no OneDrive

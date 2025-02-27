@@ -1,6 +1,6 @@
 Add-Type -AssemblyName System.Windows.Forms
 
-function Create-SymbolicLinkWithUserInput {
+function New-SymbolicLinkWithUserInput {
     # Função para abrir uma janela de seleção de pasta
     function Select-FolderDialog {
         param (
@@ -65,7 +65,7 @@ function Create-SymbolicLinkWithUserInput {
                 Set-Location $destinationPath
 
                 # Define a função para criar links simbólicos
-                function Create-SymbolicLink {
+                function New-SymbolicLink {
                     param (
                         [string]$Name,
                         [string]$Target
@@ -81,7 +81,7 @@ function Create-SymbolicLinkWithUserInput {
                     $response = [System.Windows.Forms.MessageBox]::Show("O link simbólico '$linkName' já existe. Deseja removê-lo e criar um novo?", "Confirmação", [System.Windows.Forms.MessageBoxButtons]::YesNo)
                     if ($response -eq [System.Windows.Forms.DialogResult]::Yes) {
                         Remove-Item -Path (Join-Path -Path $destinationPath -ChildPath $linkName)
-                        Create-SymbolicLink -Name $linkName -Target $sourcePath
+                        New-SymbolicLink -Name $linkName -Target $sourcePath
                         [System.Windows.Forms.MessageBox]::Show("Link simbólico '$linkName' criado com sucesso.")
                     }
                     else {
@@ -89,7 +89,7 @@ function Create-SymbolicLinkWithUserInput {
                     }
                 }
                 else {
-                    Create-SymbolicLink -Name $linkName -Target $sourcePath
+                    New-SymbolicLink -Name $linkName -Target $sourcePath
                     [System.Windows.Forms.MessageBox]::Show("Link simbólico '$linkName' criado com sucesso.")
                 }
             }
@@ -103,4 +103,4 @@ function Create-SymbolicLinkWithUserInput {
 }
 
 # Chama a função para executar o script
-Create-SymbolicLinkWithUserInput
+New-SymbolicLinkWithUserInput
