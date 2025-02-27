@@ -38,8 +38,23 @@ function Backup-Folders {
         New-Item -ItemType Directory -Path $destinationPath
     }
 
-    # Define as pastas a serem copiadas
-    $folders = @("Área de Trabalho", "Documentos", "Imagens", "Músicas", "Vídeos", "OneDrive")
+    # Define as pastas a serem copiadas com nomes válidos
+    $folders = @("Desktop", "Documents", "Pictures", "Music", "Videos", "OneDrive")
+
+    # Cria a janela de progresso
+    $progressForm = New-Object System.Windows.Forms.Form
+    $progressForm.Text = "Progresso do Backup"
+    $progressForm.Size = New-Object System.Drawing.Size(400, 100)
+    $progressForm.StartPosition = "CenterScreen"
+
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Minimum = 0
+    $progressBar.Maximum = $folders.Length
+    $progressBar.Step = 1
+    $progressBar.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $progressForm.Controls.Add($progressBar)
+
+    $progressForm.Show()
 
     # Função para copiar pastas
     function Copy-Folder {
@@ -55,7 +70,14 @@ function Backup-Folders {
         $sourcePath = Join-Path -Path $HOME -ChildPath $folder
         $destPath = Join-Path -Path $destinationPath -ChildPath $folder
         Copy-Folder -source $sourcePath -destination $destPath
+        $progressBar.PerformStep()
     }
+
+    # Fecha a janela de progresso
+    $progressForm.Close()
+
+    # Remove o mapeamento de rede
+    Remove-PSDrive -Name "Z"
 
     [System.Windows.Forms.MessageBox]::Show("Backup concluído com sucesso.")
 }
