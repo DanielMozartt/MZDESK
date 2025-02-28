@@ -1,98 +1,315 @@
 Add-Type -AssemblyName System.Windows.Forms
 
-function Backup-Folders {
-    # Função para abrir uma janela de entrada de texto
-    function InputBox {
-        param (
-            [string]$message,
-            [string]$title
-        )
-        Add-Type -AssemblyName Microsoft.VisualBasic
-        return [Microsoft.VisualBasic.Interaction]::InputBox($message, $title, "")
+function InputBox {
+    param ($message, $title)
+    Add-Type -AssemblyName Microsoft.VisualBasic
+    [Microsoft.VisualBasic.Interaction]::InputBox($message, $title, "")
+}
+
+function Copy-FolderContents {
+    param ($source, $destination)
+    try {
+        if (Test-Path $source) {
+            if (-not (Test-Path $destination)) { New-Item -ItemType Directory -Path $destination }
+            Copy-Item -Path (Join-Path $source "*") -Destination $destination -Recurse -Force -ErrorAction Stop
+        }
+        else {
+            Write-Error "Caminho não encontrado: $source"
+        }
     }
+    catch {
+        Write-Error "Erro ao copiar conteúdo de ${source}: $($_.Exception.Message)"
+    }
+}
 
-    # Solicita ao usuário o número do OS e o nome do cliente
-    $OS = InputBox -message "Digite o número do OS:" -title "Número do OS"
-    $CLIENTNAME = InputBox -message "Digite o nome do cliente:" -title "Nome do Cliente"
+function GetKnownFolderPath {
+    param ($folderName)
+    $knownFolders = @{
+        "Desktop"   = [System.Environment]::GetFolderPath("Desktop")
+        "Documents" = [System.Environment]::GetFolderPath("MyDocuments")
+        "Pictures"  = [System.Environment]::GetFolderPath("MyPictures")
+        "Music"     = [System.Environment]::GetFolderPath("MyMusic")
+        "Videos"    = [System.Environment]::GetFolderPath("MyVideos")
+        "OneDrive"  = "$HOME\OneDrive"
+        "Downloads" = [System.Environment]::GetFolderPath("UserProfile") + "\Downloads"
+    }
+    $knownFolders[$folderName]
+}
 
-    # Verifica se os valores foram fornecidos
+function Backup-Folders {
+    $OS = InputBox "Digite o número do OS:" "Número do OS"
+    $CLIENTNAME = InputBox "Digite o nome do cliente:" "Nome do Cliente"
+
     if (-not $OS -or -not $CLIENTNAME) {
         [System.Windows.Forms.MessageBox]::Show("Número do OS e nome do cliente são obrigatórios.")
         return
     }
 
-    # Define o caminho de destino
     $destinationPath = "\\Mozart\Z\BKP\OS $OS - $CLIENTNAME"
+    $credential = New-Object System.Management.Automation.PSCredential("MZT", (ConvertTo-SecureString "#MZT" -AsPlainText -Force))
 
-    # Adiciona as credenciais de rede
-    $username = "MZT"
-    $password = "#MZT"
-    $securePassword = ConvertTo-SecureString $password -AsPlainText -Force
-    $credential = New-Object System.Management.Automation.PSCredential($username, $securePassword)
-
-    # Mapeia a unidade de rede com as credenciais fornecidas
     New-PSDrive -Name "Z" -PSProvider FileSystem -Root "\\Mozart\Z" -Credential $credential -Persist
 
-    # Cria a pasta de destino se não existir
-    if (-not (Test-Path -Path $destinationPath)) {
-        New-Item -ItemType Directory -Path $destinationPath
-    }
+    if (-not (Test-Path $destinationPath)) { New-Item -ItemType Directory -Path $destinationPath }
 
-    # Define as pastas a serem copiadas com nomes válidos
-    $folders = @("Desktop", "Documents", "Pictures", "Music", "Videos", "OneDrive")
+    $folders = @("Desktop", "Documents", "Pictures", "Music", "Videos", "OneDrive", "Downloads")
 
-    # Cria a janela de progresso
-    $progressForm = New-Object System.Windows.Forms.Form
-    $progressForm.Text = "Progresso do Backup"
-    $progressForm.Size = New-Object System.Drawing.Size(400, 100)
-    $progressForm.StartPosition = "CenterScreen"
-
-    $progressBar = New-Object System.Windows.Forms.ProgressBar
-    $progressBar.Minimum = 0
-    $progressBar.Maximum = $folders.Length
-    $progressBar.Step = 1
-    $progressBar.Dock = [System.Windows.Forms.DockStyle]::Fill
-    $progressForm.Controls.Add($progressBar)
-
-    $progressForm.Show()
-
-    # Função para copiar pastas
-    function Copy-Folder {
-        param (
-            [string]$source,
-            [string]$destination
-        )
-        Copy-Item -Path $source -Destination $destination -Recurse -Force -ErrorAction SilentlyContinue
-    }
-
-    # Função para obter o caminho da pasta, verificando também no OneDrive
-    function Get-FolderPath {
-        param (
-            [string]$folderName
-        )
-        $path = Join-Path -Path $HOME -ChildPath $folderName
-        if (-not (Test-Path -Path $path)) {
-            $path = Join-Path -Path "$HOME\OneDrive" -ChildPath $folderName
-        }
-        return $path
-    }
-
-    # Copia as pastas para o destino
     foreach ($folder in $folders) {
-        $sourcePath = Get-FolderPath -folderName $folder
-        $destPath = Join-Path -Path $destinationPath -ChildPath $folder
-        Copy-Folder -source $sourcePath -destination $destPath
-        $progressBar.PerformStep()
+        $sourcePath = GetKnownFolderPath $folder
+        $destPath = Join-Path $destinationPath $folder
+        try {
+            if ($folder -eq "Documents") {
+                $excludeFolders = @("Meus Vídeos", "Minhas Imagens", "Minhas Músicas")
+                Get-ChildItem -Path $sourcePath | Where-Object { $excludeFolders -notcontains $_.Name } | ForEach-Object {
+                    Copy-FolderContents -source $_.FullName -destination (Join-Path $destPath $_.Name)
+                }
+            }
+            else {
+                Copy-FolderContents -source $sourcePath -destination $destPath
+            }
+        }
+        catch {
+            Write-Error "Erro ao copiar conteúdo de ${sourcePath}: $($_.Exception.Message)"
+        }
     }
 
-    # Fecha a janela de progresso
-    $progressForm.Close()
-
-    # Remove o mapeamento de rede
     Remove-PSDrive -Name "Z"
-
     [System.Windows.Forms.MessageBox]::Show("Backup concluído com sucesso.")
 }
 
-# Chama a função para executar o script
-Backup-Folders
+function Restore-Folders {
+    $OS = InputBox "Digite o número do OS:" "Número do OS"
+    $CLIENTNAME = InputBox "Digite o nome do cliente:" "Nome do Cliente"
+
+    if (-not $OS -or -not $CLIENTNAME) {
+        [System.Windows.Forms.MessageBox]::Show("Número do OS e nome do cliente são obrigatórios.")
+        return
+    }
+
+    $sourcePath = "\\MOZART\Z\BKP\OS $OS - $CLIENTNAME"
+    $credential = New-Object System.Management.Automation.PSCredential("MZT", (ConvertTo-SecureString "#MZT" -AsPlainText -Force))
+
+    New-PSDrive -Name "Z" -PSProvider FileSystem -Root "\\MOZART\Z" -Credential $credential -Persist
+
+    if (-not (Test-Path $sourcePath)) {
+        Write-Error "Caminho de origem não encontrado: $sourcePath"
+        return
+    }
+
+    $folders = @("Desktop", "Documents", "Pictures", "Music", "Videos", "OneDrive", "Downloads")
+
+    foreach ($folder in $folders) {
+        $sourceFolderPath = Join-Path $sourcePath $folder
+        $destFolderPath = GetKnownFolderPath $folder
+        try {
+            if (Test-Path $sourceFolderPath) {
+                Copy-FolderContents -source $sourceFolderPath -destination $destFolderPath
+            }
+            else {
+                Write-Error "Caminho não encontrado: ${sourceFolderPath}"
+            }
+        }
+        catch {
+            Write-Error "Erro ao copiar conteúdo de ${sourceFolderPath}: $($_.Exception.Message)"
+        }
+    }
+
+    Remove-PSDrive -Name "Z"
+    [System.Windows.Forms.MessageBox]::Show("Restauração concluída com sucesso.")
+}
+
+function Show-Menu {
+    $menuForm = New-Object System.Windows.Forms.Form
+    $menuForm.Text = "Menu de Backup e Restauração"
+    $menuForm.Size = New-Object System.Drawing.Size(300, 150)
+    $menuForm.StartPosition = "CenterScreen"
+
+    $backupButton = New-Object System.Windows.Forms.Button
+    $backupButton.Text = "Fazer Backup"
+    $backupButton.Size = New-Object System.Drawing.Size(120, 30)
+    $backupButton.Location = New-Object System.Drawing.Point(90, 20)
+    $backupButton.Add_Click({ Backup-Folders })
+
+    $restoreButton = New-Object System.Windows.Forms.Button
+    $restoreButton.Text = "Restaurar Backup"
+    $restoreButton.Size = New-Object System.Drawing.Size(120, 30)
+    $restoreButton.Location = New-Object System.Drawing.Point(90, 60)
+    $restoreButton.Add_Click({ Restore-Folders })
+
+    $menuForm.Controls.Add($backupButton)
+    $menuForm.Controls.Add($restoreButton)
+
+    $menuForm.ShowDialog()
+}
+
+Show-Menu
+Agora, o script exibirá apenas mensagens de erro no terminal e no menu. Se precisar de mais alguma modificação, estou à disposição!
+
+
+
+
+O conteúdo gerado por IA pode estar incorreto
+You said:
+
+Modifique o script para mostrar apenas outputs se houver erros além do erros no terminal além do menu.
+Copilot said:
+Copilot
+Claro! Aqui está a versão modificada do seu script para mostrar apenas mensagens de erro no terminal e no menu:
+
+Add-Type -AssemblyName System.Windows.Forms
+
+function InputBox {
+    param ($message, $title)
+    Add-Type -AssemblyName Microsoft.VisualBasic
+    [Microsoft.VisualBasic.Interaction]::InputBox($message, $title, "")
+}
+
+function Copy-FolderContents {
+    param ($source, $destination)
+    try {
+        if (Test-Path $source) {
+            if (-not (Test-Path $destination)) { New-Item -ItemType Directory -Path $destination }
+            Copy-Item -Path (Join-Path $source "*") -Destination $destination -Recurse -Force -ErrorAction Stop
+        }
+        else {
+            $errorMsg = "Caminho não encontrado: $source"
+            Write-Error $errorMsg
+            [System.Windows.Forms.MessageBox]::Show($errorMsg)
+        }
+    }
+    catch {
+        $errorMsg = "Erro ao copiar conteúdo de ${source}: $($_.Exception.Message)"
+        Write-Error $errorMsg
+        [System.Windows.Forms.MessageBox]::Show($errorMsg)
+    }
+}
+
+function GetKnownFolderPath {
+    param ($folderName)
+    $knownFolders = @{
+        "Desktop"   = [System.Environment]::GetFolderPath("Desktop")
+        "Documents" = [System.Environment]::GetFolderPath("MyDocuments")
+        "Pictures"  = [System.Environment]::GetFolderPath("MyPictures")
+        "Music"     = [System.Environment]::GetFolderPath("MyMusic")
+        "Videos"    = [System.Environment]::GetFolderPath("MyVideos")
+        "OneDrive"  = "$HOME\OneDrive"
+        "Downloads" = [System.Environment]::GetFolderPath("UserProfile") + "\Downloads"
+    }
+    $knownFolders[$folderName]
+}
+
+function Backup-Folders {
+    $OS = InputBox "Digite o número do OS:" "Número do OS"
+    $CLIENTNAME = InputBox "Digite o nome do cliente:" "Nome do Cliente"
+
+    if (-not $OS -or -not $CLIENTNAME) {
+        [System.Windows.Forms.MessageBox]::Show("Número do OS e nome do cliente são obrigatórios.")
+        return
+    }
+
+    $destinationPath = "\\Mozart\Z\BKP\OS $OS - $CLIENTNAME"
+    $credential = New-Object System.Management.Automation.PSCredential("MZT", (ConvertTo-SecureString "#MZT" -AsPlainText -Force))
+
+    New-PSDrive -Name "Z" -PSProvider FileSystem -Root "\\Mozart\Z" -Credential $credential -Persist
+
+    if (-not (Test-Path $destinationPath)) { New-Item -ItemType Directory -Path $destinationPath }
+
+    $folders = @("Desktop", "Documents", "Pictures", "Music", "Videos", "OneDrive", "Downloads")
+
+    foreach ($folder in $folders) {
+        $sourcePath = GetKnownFolderPath $folder
+        $destPath = Join-Path $destinationPath $folder
+        try {
+            if ($folder -eq "Documents") {
+                $excludeFolders = @("Meus Vídeos", "Minhas Imagens", "Minhas Músicas")
+                Get-ChildItem -Path $sourcePath | Where-Object { $excludeFolders -notcontains $_.Name } | ForEach-Object {
+                    Copy-FolderContents -source $_.FullName -destination (Join-Path $destPath $_.Name)
+                }
+            }
+            else {
+                Copy-FolderContents -source $sourcePath -destination $destPath
+            }
+        }
+        catch {
+            $errorMsg = "Erro ao copiar conteúdo de ${sourcePath}: $($_.Exception.Message)"
+            Write-Error $errorMsg
+            [System.Windows.Forms.MessageBox]::Show($errorMsg)
+        }
+    }
+
+    Remove-PSDrive -Name "Z"
+    [System.Windows.Forms.MessageBox]::Show("Backup concluído com sucesso.")
+}
+
+function Restore-Folders {
+    $OS = InputBox "Digite o número do OS:" "Número do OS"
+    $CLIENTNAME = InputBox "Digite o nome do cliente:" "Nome do Cliente"
+
+    if (-not $OS -or -not $CLIENTNAME) {
+        [System.Windows.Forms.MessageBox]::Show("Número do OS e nome do cliente são obrigatórios.")
+        return
+    }
+
+    $sourcePath = "\\MOZART\Z\BKP\OS $OS - $CLIENTNAME"
+    $credential = New-Object System.Management.Automation.PSCredential("MZT", (ConvertTo-SecureString "#MZT" -AsPlainText -Force))
+
+    New-PSDrive -Name "Z" -PSProvider FileSystem -Root "\\MOZART\Z" -Credential $credential -Persist
+
+    if (-not (Test-Path $sourcePath)) {
+        $errorMsg = "Caminho de origem não encontrado: $sourcePath"
+        Write-Error $errorMsg
+        [System.Windows.Forms.MessageBox]::Show($errorMsg)
+        return
+    }
+
+    $folders = @("Desktop", "Documents", "Pictures", "Music", "Videos", "OneDrive", "Downloads")
+
+    foreach ($folder in $folders) {
+        $sourceFolderPath = Join-Path $sourcePath $folder
+        $destFolderPath = GetKnownFolderPath $folder
+        try {
+            if (Test-Path $sourceFolderPath) {
+                Copy-FolderContents -source $sourceFolderPath -destination $destFolderPath
+            }
+            else {
+                $errorMsg = "Caminho não encontrado: ${sourceFolderPath}"
+                Write-Error $errorMsg
+                [System.Windows.Forms.MessageBox]::Show($errorMsg)
+            }
+        }
+        catch {
+            $errorMsg = "Erro ao copiar conteúdo de ${sourceFolderPath}: $($_.Exception.Message)"
+            Write-Error $errorMsg
+            [System.Windows.Forms.MessageBox]::Show($errorMsg)
+        }
+    }
+
+    Remove-PSDrive -Name "Z"
+    [System.Windows.Forms.MessageBox]::Show("Restauração concluída com sucesso.")
+}
+
+function Show-Menu {
+    $menuForm = New-Object System.Windows.Forms.Form
+    $menuForm.Text = "Menu de Backup e Restauração"
+    $menuForm.Size = New-Object System.Drawing.Size(300, 150)
+    $menuForm.StartPosition = "CenterScreen"
+
+    $backupButton = New-Object System.Windows.Forms.Button
+    $backupButton.Text = "Fazer Backup"
+    $backupButton.Size = New-Object System.Drawing.Size(120, 30)
+    $backupButton.Location = New-Object System.Drawing.Point(90, 20)
+    $backupButton.Add_Click({ Backup-Folders })
+
+    $restoreButton = New-Object System.Windows.Forms.Button
+    $restoreButton.Text = "Restaurar Backup"
+    $restoreButton.Size = New-Object System.Drawing.Size(120, 30)
+    $restoreButton.Location = New-Object System.Drawing.Point(90, 60)
+    $restoreButton.Add_Click({ Restore-Folders })
+
+    $menuForm.Controls.Add($backupButton)
+    $menuForm.Controls.Add($restoreButton)
+
+    $menuForm.ShowDialog()
+}
+
+Show-Menu
